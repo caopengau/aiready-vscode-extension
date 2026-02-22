@@ -9,13 +9,9 @@ import { getMergedConfig } from '../utils/config';
 
 const execAsync = promisify(exec);
 
+// CLI JSON structure based on actual output
 interface AIReadyResult {
-  passed: boolean;
-  score: number;
-  issues: number;
-  warnings: number;
-  report: string;
-  summary?: {
+  summary: {
     totalIssues: number;
     toolsRun: string[];
     executionTime: number;
@@ -28,9 +24,49 @@ interface AIReadyResult {
       rating: string;
     }>;
   };
-  patterns?: any[];
-  context?: any[];
-  consistency?: any;
+  patterns?: Array<{
+    fileName: string;
+    issues: Array<{
+      type: string;
+      severity: 'critical' | 'major' | 'minor' | 'info';
+      message: string;
+      location: {
+        file: string;
+        line?: number;
+      };
+      suggestion?: string;
+    }>;
+    metrics?: {
+      tokenCost: number;
+      consistencyScore: number;
+    };
+  }>;
+  context?: Array<{
+    severity: 'critical' | 'major' | 'minor' | 'info';
+    message: string;
+    location?: {
+      file: string;
+      line?: number;
+    };
+  }>;
+  consistency?: {
+    summary: {
+      totalIssues: number;
+      filesAnalyzed: number;
+    };
+    results?: Array<{
+      file: string;
+      issues: Array<{
+        severity: 'critical' | 'major' | 'minor' | 'info';
+        message: string;
+        location?: {
+          file: string;
+          line?: number;
+        };
+      }>;
+    }>;
+  };
+  duplicates?: any[];
 }
 
 /**
@@ -53,6 +89,37 @@ function findLatestReport(workspacePath: string): string | null {
     .sort((a: any, b: any) => b.mtime.getTime() - a.mtime.getTime());
   
   return files.length > 0 ? files[0].path : null;
+}
+
+/**
+ * Count issues by severity from all tools
+ */
+function countIssues(result: AIReadyResult): { critical: number; major: number; minor: number; info: number; total: number } {
+  const counts = { critical: 0, major: 0, minor: 0, info: 0, total: 0 };
+  
+  // Count pattern issues
+  result.patterns?.forEach(p => {
+    p.issues?.forEach(issue => {
+      counts[issue.severity] = (counts[issue.severity] || 0) + 1;
+      counts.total++;
+    });
+  });
+  
+  // Count context issues
+  result.context?.forEach(issue => {
+    counts[issue.severity] = (counts[issue.severity] || 0) + 1;
+    counts.total++;
+  });
+  
+  // Count consistency issues
+  result.consistency?.results?.forEach(r => {
+    r.issues?.forEach(issue => {
+      counts[issue.severity] = (counts[issue.severity] || 0) + 1;
+      counts.total++;
+    });
+  });
+  
+  return counts;
 }
 
 export function createScanCommands(
@@ -136,8 +203,11 @@ export function createScanCommands(
       const jsonContent = readFileSync(reportPath, 'utf8');
       const result: AIReadyResult = JSON.parse(jsonContent);
 
-      // Determine score - use scoring.overallScore if available, else result.score
-      const score = result.scoring?.overallScore ?? result.score ?? 0;
+      // Determine score - use scoring.overallScore if available
+      const score = result.scoring?.overallScore ?? 0;
+      
+      // Count issues by severity
+      const issueCounts = countIssues(result);
       
       // Update status bar
       const passed = score >= threshold;
@@ -157,8 +227,8 @@ export function createScanCommands(
       
       const summary: Summary = {
         score,
-        issues: result.issues,
-        warnings: result.warnings,
+        issues: issueCounts.total,
+        warnings: issueCounts.major + issueCounts.minor,
         breakdown: result.scoring?.breakdown
       };
       summaryProvider.refresh(summary);
@@ -183,8 +253,7 @@ export function createScanCommands(
       }
       
       outputChannel.appendLine('');
-      outputChannel.appendLine(`Issues:   ${result.issues}`);
-      outputChannel.appendLine(`Warnings: ${result.warnings}`);
+      outputChannel.appendLine(`Issues:   ${issueCounts.total} (critical: ${issueCounts.critical}, major: ${issueCounts.major}, minor: ${issueCounts.minor})`);
       outputChannel.appendLine(`Status:   ${passed ? '✅ PASSED' : '❌ FAILED'}`);
       outputChannel.appendLine('');
       
@@ -194,14 +263,10 @@ export function createScanCommands(
         outputChannel.appendLine(`Execution time: ${(result.summary.executionTime / 1000).toFixed(2)}s`);
         outputChannel.appendLine('');
       }
-      
-      if (result.report) {
-        outputChannel.appendLine(result.report);
-      }
 
       // Show notification with option to visualize
       const action = await vscode.window.showInformationMessage(
-        `AIReady: Score ${score}/100 - ${result.issues} issues`,
+        `AIReady: Score ${score}/100 - ${issueCounts.total} issues`,
         'Visualize',
         'View Report'
       );
