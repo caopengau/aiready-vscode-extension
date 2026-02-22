@@ -1,0 +1,15 @@
+# Ignore development files
+.env
+.env.example
+.vscode/**
+.vscode-test/**
+src/**
+*.ts
+!dist/**/*.js
+
+# Include these
+!package.json
+!readme.md
+!LICENSE.md
+!media/**
+!dist/**
