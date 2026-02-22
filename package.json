@@ -3,7 +3,7 @@
   "displayName": "AIReady - AI Readiness Checker",
   "description": "Real-time AI readiness analysis for your codebase. Detect issues that confuse AI models before they become problems.",
   "version": "0.1.0",
-  "publisher": "aiready",
+  "publisher": "pengcao",
   "license": "MIT",
   "icon": "media/icon.png",
   "galleryBanner": {
@@ -12,8 +12,8 @@
   },
   "badges": [
     {
-      "url": "https://img.shields.io/visual-studio-marketplace/v/aiready.aiready?label=VS%20Code%20Marketplace&color=blue",
-      "href": "https://marketplace.visualstudio.com/items?itemName=aiready.aiready",
+      "url": "https://img.shields.io/visual-studio-marketplace/v/pengcao.aiready?label=VS%20Code%20Marketplace&color=blue",
+      "href": "https://marketplace.visualstudio.com/items?itemName=pengcao.aiready",
       "description": "VS Code Marketplace"
     },
     {
