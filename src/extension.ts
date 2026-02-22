@@ -15,6 +15,16 @@ interface AIReadyResult {
   report: string;
 }
 
+// Smart defaults matching CLI behavior
+const SMART_DEFAULTS = {
+  threshold: 70,
+  tools: ['patterns', 'context', 'consistency'] as const,
+  failOn: 'critical' as const,
+  autoScan: false,
+  showStatusBar: true,
+  excludePatterns: ['node_modules/**', 'dist/**', '.git/**', '**/*.min.js', '**/build/**'],
+};
+
 export function activate(context: vscode.ExtensionContext) {
   console.log('AIReady extension is now active!');
 
@@ -38,7 +48,7 @@ export function activate(context: vscode.ExtensionContext) {
 
   // Auto-scan on save if enabled
   const config = vscode.workspace.getConfiguration('aiready');
-  if (config.get<boolean>('autoScan')) {
+  if (config.get<boolean>('autoScan', SMART_DEFAULTS.autoScan)) {
     context.subscriptions.push(
       vscode.workspace.onDidSaveTextDocument(document => {
         if (document.uri.scheme === 'file') {
@@ -47,6 +57,29 @@ export function activate(context: vscode.ExtensionContext) {
       })
     );
   }
+}
+
+/**
+ * Get merged configuration with smart defaults (matching CLI behavior)
+ */
+function getMergedConfig(): {
+  threshold: number;
+  tools: string[];
+  failOn: string;
+  autoScan: boolean;
+  showStatusBar: boolean;
+  excludePatterns: string[];
+} {
+  const config = vscode.workspace.getConfiguration('aiready');
+  
+  return {
+    threshold: config.get<number>('threshold', SMART_DEFAULTS.threshold),
+    tools: config.get<string[]>('tools', [...SMART_DEFAULTS.tools]),
+    failOn: config.get<string>('failOn', SMART_DEFAULTS.failOn),
+    autoScan: config.get<boolean>('autoScan', SMART_DEFAULTS.autoScan),
+    showStatusBar: config.get<boolean>('showStatusBar', SMART_DEFAULTS.showStatusBar),
+    excludePatterns: config.get<string[]>('excludePatterns', [...SMART_DEFAULTS.excludePatterns]),
+  };
 }
 
 async function scanWorkspace(): Promise<void> {
@@ -71,24 +104,48 @@ async function quickScan(): Promise<void> {
 }
 
 async function runAIReady(path: string, quickScan = false): Promise<void> {
-  const config = vscode.workspace.getConfiguration('aiready');
-  const threshold = config.get<number>('threshold') || 70;
-  const tools = config.get<string[]>('tools') || ['patterns', 'context', 'consistency'];
+  const mergedConfig = getMergedConfig();
+  const { threshold, tools } = mergedConfig;
 
   updateStatusBar('$(sync~spin) Scanning...', false);
 
   try {
-    const cmd = `npx @aiready/cli --output json --paths ${path}`;
+    // Build CLI command matching CLI defaults
+    // Use --output json for structured results, and include --score for AI readiness
+    const toolsArg = tools.join(',');
+    let cmd = `npx @aiready/cli scan --output json --tools ${toolsArg} --score`;
+    
+    // Add path argument
+    cmd += ` "${path}"`;
+    
     const { stdout } = await execAsync(cmd, {
-      maxBuffer: 1024 * 1024 * 10
+      maxBuffer: 1024 * 1024 * 10,
+      cwd: vscode.workspace.workspaceFolders?.[0]?.uri.fsPath || process.cwd()
     });
 
-    const result: AIReadyResult = JSON.parse(stdout);
+    const result: AIReadyResult & { 
+      summary?: { 
+        totalIssues: number; 
+        toolsRun: string[]; 
+        executionTime: number;
+      };
+      scoring?: {
+        overallScore: number;
+        breakdown?: Array<{
+          toolName: string;
+          score: number;
+          rating: string;
+        }>;
+      };
+    } = JSON.parse(stdout);
 
+    // Determine score - use scoring.overallScore if available, else result.score
+    const score = result.scoring?.overallScore ?? result.score ?? 0;
+    
     // Update status bar
-    const passed = result.score >= threshold;
+    const passed = score >= threshold;
     updateStatusBar(
-      `${passed ? '✓' : '✗'} AIReady: ${result.score}`,
+      `${passed ? '✓' : '✗'} AIReady: ${score}`,
       !passed
     );
 
@@ -98,22 +155,43 @@ async function runAIReady(path: string, quickScan = false): Promise<void> {
     outputChannel.appendLine('       AIReady Analysis Results        ');
     outputChannel.appendLine('═══════════════════════════════════════');
     outputChannel.appendLine('');
-    outputChannel.appendLine(`Score:    ${result.score}/100`);
+    
+    // Show AI Readiness Score
+    outputChannel.appendLine(`AI Readiness Score: ${score}/100`);
+    
+    // Show tool breakdown if available
+    if (result.scoring?.breakdown && result.scoring.breakdown.length > 0) {
+      outputChannel.appendLine('');
+      outputChannel.appendLine('Tool Breakdown:');
+      result.scoring.breakdown.forEach(tool => {
+        outputChannel.appendLine(`  - ${tool.toolName}: ${tool.score}/100 (${tool.rating})`);
+      });
+    }
+    
+    outputChannel.appendLine('');
     outputChannel.appendLine(`Issues:   ${result.issues}`);
     outputChannel.appendLine(`Warnings: ${result.warnings}`);
     outputChannel.appendLine(`Status:   ${passed ? '✅ PASSED' : '❌ FAILED'}`);
     outputChannel.appendLine('');
+    
+    // Show summary if available
+    if (result.summary) {
+      outputChannel.appendLine(`Tools run: ${result.summary.toolsRun.join(', ')}`);
+      outputChannel.appendLine(`Execution time: ${(result.summary.executionTime / 1000).toFixed(2)}s`);
+      outputChannel.appendLine('');
+    }
+    
     outputChannel.appendLine(result.report);
     outputChannel.show(true);
 
     // Show notification
     if (!passed) {
       vscode.window.showWarningMessage(
-        `AIReady: Score ${result.score} below threshold ${threshold}`
+        `AIReady: Score ${score} below threshold ${threshold}`
       );
     } else {
       vscode.window.showInformationMessage(
-        `AIReady: Score ${result.score}/100 - ${result.issues} issues`
+        `AIReady: Score ${score}/100 - ${result.issues} issues`
       );
     }
 

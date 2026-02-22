@@ -2,7 +2,7 @@
   "name": "aiready",
   "displayName": "AIReady - AI Readiness Checker",
   "description": "Real-time AI readiness analysis for your codebase. Detect issues that confuse AI models before they become problems.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "publisher": "pengcao",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -88,13 +88,13 @@
         "aiready.threshold": {
           "type": "number",
           "default": 70,
-          "description": "Minimum AI readiness score (0-100) to pass checks"
+          "description": "Minimum AI readiness score (0-100) to pass checks. Default: 70 (matching CLI)"
         },
         "aiready.failOn": {
           "type": "string",
           "enum": ["critical", "major", "any", "none"],
           "default": "critical",
-          "description": "Fail on issues of this severity or higher"
+          "description": "Fail on issues of this severity or higher. Default: critical (matching CLI)"
         },
         "aiready.tools": {
           "type": "array",
@@ -103,7 +103,7 @@
             "enum": ["patterns", "context", "consistency"]
           },
           "default": ["patterns", "context", "consistency"],
-          "description": "Tools to run during analysis"
+          "description": "Tools to run during analysis. Default: all three (matching CLI)"
         },
         "aiready.autoScan": {
           "type": "boolean",
@@ -115,8 +115,8 @@
           "items": {
             "type": "string"
           },
-          "default": ["node_modules/**", "dist/**", ".git/**"],
-          "description": "Glob patterns to exclude from analysis"
+          "default": ["node_modules/**", "dist/**", ".git/**", "**/*.min.js", "**/build/**"],
+          "description": "Glob patterns to exclude from analysis (matching CLI defaults)"
         },
         "aiready.showStatusBar": {
           "type": "boolean",
