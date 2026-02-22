@@ -2,7 +2,7 @@
   "name": "aiready",
   "displayName": "AIReady - AI Readiness Checker",
   "description": "Real-time AI readiness analysis for your codebase. Detect issues that confuse AI models before they become problems.",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "publisher": "pengcao",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -49,8 +49,13 @@
     "commands": [
       {
         "command": "aiready.scan",
-        "title": "AIReady: Scan Workspace",
+        "title": "AIReady: Run Scan",
         "icon": "$(shield)"
+      },
+      {
+        "command": "aiready.visualize",
+        "title": "AIReady: Run Visualizer",
+        "icon": "$(graph)"
       },
       {
         "command": "aiready.showReport",

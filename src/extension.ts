@@ -1,5 +1,5 @@
 import * as vscode from 'vscode';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import { promisify } from 'util';
 
 const execAsync = promisify(exec);
@@ -39,6 +39,7 @@ export function activate(context: vscode.ExtensionContext) {
   context.subscriptions.push(
     vscode.commands.registerCommand('aiready.scan', scanWorkspace),
     vscode.commands.registerCommand('aiready.quickScan', quickScan),
+    vscode.commands.registerCommand('aiready.visualize', runVisualizer),
     vscode.commands.registerCommand('aiready.showReport', showReport),
     vscode.commands.registerCommand('aiready.openSettings', openSettings)
   );
@@ -184,21 +185,74 @@ async function runAIReady(path: string, quickScan = false): Promise<void> {
     outputChannel.appendLine(result.report);
     outputChannel.show(true);
 
-    // Show notification
-    if (!passed) {
-      vscode.window.showWarningMessage(
-        `AIReady: Score ${score} below threshold ${threshold}`
-      );
-    } else {
-      vscode.window.showInformationMessage(
-        `AIReady: Score ${score}/100 - ${result.issues} issues`
-      );
+    // Show notification with option to visualize
+    const action = await vscode.window.showInformationMessage(
+      `AIReady: Score ${score}/100 - ${result.issues} issues`,
+      'Visualize'
+    );
+    
+    if (action === 'Visualize') {
+      await runVisualizer();
     }
 
   } catch (error) {
     updateStatusBar('AIReady: Error', true);
     const message = error instanceof Error ? error.message : 'Unknown error';
     vscode.window.showErrorMessage(`AIReady scan failed: ${message}`);
+    outputChannel.appendLine(`Error: ${message}`);
+    outputChannel.show();
+  }
+}
+
+async function runVisualizer(): Promise<void> {
+  const workspaceFolders = vscode.workspace.workspaceFolders;
+  if (!workspaceFolders) {
+    vscode.window.showErrorMessage('No workspace folder open');
+    return;
+  }
+
+  const workspacePath = workspaceFolders[0].uri.fsPath;
+  
+  updateStatusBar('$(sync~spin) Generating visualization...', false);
+  
+  try {
+    outputChannel.clear();
+    outputChannel.appendLine('═══════════════════════════════════════');
+    outputChannel.appendLine('    AIReady Visualization Generator    ');
+    outputChannel.appendLine('═══════════════════════════════════════');
+    outputChannel.appendLine('');
+    outputChannel.appendLine('Generating interactive visualization...');
+    outputChannel.show();
+    
+    // Run the visualizer command with --dev flag to start dev server
+    const cmd = `npx @aiready/cli visualize --dev`;
+    
+    outputChannel.appendLine(`Running: ${cmd}`);
+    outputChannel.appendLine('');
+    
+    // Use spawn for long-running process
+    const { spawn } = require('child_process');
+    const child = spawn('npx', ['@aiready/cli', 'visualize', '--dev'], {
+      cwd: workspacePath,
+      shell: true,
+      stdio: 'inherit'
+    });
+    
+    child.on('error', (error: Error) => {
+      outputChannel.appendLine(`Error: ${error.message}`);
+      updateStatusBar('AIReady: Error', true);
+    });
+    
+    updateStatusBar('AIReady: Visualizer running', false);
+    
+    vscode.window.showInformationMessage(
+      'AIReady: Visualizer dev server started. Check the output panel for the URL.'
+    );
+    
+  } catch (error) {
+    updateStatusBar('AIReady: Error', true);
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    vscode.window.showErrorMessage(`AIReady visualizer failed: ${message}`);
     outputChannel.appendLine(`Error: ${message}`);
     outputChannel.show();
   }
