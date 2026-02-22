@@ -6,6 +6,8 @@ const execAsync = promisify(exec);
 
 let statusBarItem: vscode.StatusBarItem;
 let outputChannel: vscode.OutputChannel;
+let issuesProvider: AIReadyIssuesProvider;
+let summaryProvider: AIReadySummaryProvider;
 
 interface AIReadyResult {
   passed: boolean;
@@ -25,10 +27,183 @@ const SMART_DEFAULTS = {
   excludePatterns: ['node_modules/**', 'dist/**', '.git/**', '**/*.min.js', '**/build/**'],
 };
 
+// Tree item for issues view
+class AIReadyIssuesProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<vscode.TreeItem | undefined | null | void>();
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+  private issues: any[] = [];
+
+  refresh(issues: any[] = []): void {
+    this.issues = issues;
+    this._onDidChangeTreeData.fire();
+  }
+
+  getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
+    return element;
+  }
+
+  getChildren(element?: vscode.TreeItem): vscode.ProviderResult<vscode.TreeItem[]> {
+    if (!element) {
+      if (this.issues.length === 0) {
+        return [
+          {
+            label: 'Run a scan to see issues',
+            iconPath: new vscode.ThemeIcon('info'),
+            command: {
+              command: 'aiready.scan',
+              title: 'Run Scan'
+            }
+          } as vscode.TreeItem
+        ];
+      }
+      return this.issues.map(issue => {
+        const item = new vscode.TreeItem(
+          issue.message || 'Issue',
+          vscode.TreeItemCollapsibleState.None
+        );
+        item.iconPath = new vscode.ThemeIcon(
+          issue.severity === 'critical' ? 'error' :
+          issue.severity === 'major' ? 'warning' : 'info'
+        );
+        item.description = issue.location?.file || '';
+        return item;
+      });
+    }
+    return [];
+  }
+}
+
+// Tree item for summary view
+class AIReadySummaryProvider implements vscode.TreeDataProvider<vscode.TreeItem> {
+  private _onDidChangeTreeData = new vscode.EventEmitter<vscode.TreeItem | undefined | null | void>();
+  readonly onDidChangeTreeData = this._onDidChangeTreeData.event;
+
+  private summary: any = null;
+
+  refresh(summary: any = null): void {
+    this.summary = summary;
+    this._onDidChangeTreeData.fire();
+  }
+
+  getTreeItem(element: vscode.TreeItem): vscode.TreeItem {
+    return element;
+  }
+
+  getChildren(element?: vscode.TreeItem): vscode.ProviderResult<vscode.TreeItem[]> {
+    if (!element) {
+      if (!this.summary) {
+        return [
+          {
+            label: '$(play) Run Scan',
+            iconPath: new vscode.ThemeIcon('play'),
+            command: {
+              command: 'aiready.scan',
+              title: 'Run Scan'
+            }
+          } as vscode.TreeItem,
+          {
+            label: '$(graph) Run Visualizer',
+            iconPath: new vscode.ThemeIcon('graph'),
+            command: {
+              command: 'aiready.visualize',
+              title: 'Run Visualizer'
+            }
+          } as vscode.TreeItem,
+          {
+            label: '$(gear) Open Settings',
+            iconPath: new vscode.ThemeIcon('gear'),
+            command: {
+              command: 'aiready.openSettings',
+              title: 'Open Settings'
+            }
+          } as vscode.TreeItem
+        ];
+      }
+      
+      const items: vscode.TreeItem[] = [
+        {
+          label: `Score: ${this.summary.score}/100`,
+          iconPath: new vscode.ThemeIcon(
+            this.summary.score >= 70 ? 'check' : 
+            this.summary.score >= 50 ? 'warning' : 'error'
+          ),
+          description: this.summary.score >= 70 ? 'Passed' : 
+                       this.summary.score >= 50 ? 'Needs work' : 'Failing'
+        } as vscode.TreeItem,
+        {
+          label: `Issues: ${this.summary.issues}`,
+          iconPath: new vscode.ThemeIcon('error')
+        } as vscode.TreeItem,
+        {
+          label: `Warnings: ${this.summary.warnings}`,
+          iconPath: new vscode.ThemeIcon('warning')
+        } as vscode.TreeItem,
+      ];
+
+      // Add tool breakdown
+      if (this.summary.breakdown) {
+        this.summary.breakdown.forEach((tool: any) => {
+          items.push({
+            label: `${tool.toolName}: ${tool.score}/100`,
+            iconPath: new vscode.ThemeIcon(
+              tool.score >= 70 ? 'check' : 
+              tool.score >= 50 ? 'warning' : 'error'
+            ),
+            description: tool.rating
+          } as vscode.TreeItem);
+        });
+      }
+
+      // Add action buttons
+      items.push({
+        label: '',
+        contextValue: 'separator'
+      } as vscode.TreeItem);
+      items.push({
+        label: '$(play) Run Scan Again',
+        iconPath: new vscode.ThemeIcon('play'),
+        command: {
+          command: 'aiready.scan',
+          title: 'Run Scan'
+        }
+      } as vscode.TreeItem);
+      items.push({
+        label: '$(graph) Run Visualizer',
+        iconPath: new vscode.ThemeIcon('graph'),
+        command: {
+          command: 'aiready.visualize',
+          title: 'Run Visualizer'
+        }
+      } as vscode.TreeItem);
+
+      return items;
+    }
+    return [];
+  }
+}
+
 export function activate(context: vscode.ExtensionContext) {
   console.log('AIReady extension is now active!');
 
   outputChannel = vscode.window.createOutputChannel('AIReady');
+
+  // Create tree data providers
+  issuesProvider = new AIReadyIssuesProvider();
+  summaryProvider = new AIReadySummaryProvider();
+
+  // Register tree views
+  const issuesView = vscode.window.createTreeView('aiready.issues', {
+    treeDataProvider: issuesProvider,
+    showCollapseAll: false
+  });
+
+  const summaryView = vscode.window.createTreeView('aiready.summary', {
+    treeDataProvider: summaryProvider,
+    showCollapseAll: false
+  });
+
+  context.subscriptions.push(issuesView, summaryView);
 
   // Create status bar item
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);
@@ -44,11 +219,13 @@ export function activate(context: vscode.ExtensionContext) {
     vscode.commands.registerCommand('aiready.openSettings', openSettings)
   );
 
-  // Show initial status
-  updateStatusBar('AIReady', false);
+  // Show initial status bar
+  const config = vscode.workspace.getConfiguration('aiready');
+  if (config.get<boolean>('showStatusBar', SMART_DEFAULTS.showStatusBar)) {
+    updateStatusBar('$(shield) AIReady', false);
+  }
 
   // Auto-scan on save if enabled
-  const config = vscode.workspace.getConfiguration('aiready');
   if (config.get<boolean>('autoScan', SMART_DEFAULTS.autoScan)) {
     context.subscriptions.push(
       vscode.workspace.onDidSaveTextDocument(document => {
@@ -58,6 +235,10 @@ export function activate(context: vscode.ExtensionContext) {
       })
     );
   }
+
+  // Initial refresh of views
+  issuesProvider.refresh();
+  summaryProvider.refresh();
 }
 
 /**
@@ -138,6 +319,9 @@ async function runAIReady(path: string, quickScan = false): Promise<void> {
           rating: string;
         }>;
       };
+      patterns?: any[];
+      context?: any[];
+      consistency?: any;
     } = JSON.parse(stdout);
 
     // Determine score - use scoring.overallScore if available, else result.score
@@ -146,11 +330,26 @@ async function runAIReady(path: string, quickScan = false): Promise<void> {
     // Update status bar
     const passed = score >= threshold;
     updateStatusBar(
-      `${passed ? '✓' : '✗'} AIReady: ${score}`,
+      `$(shield) AIReady: ${score}`,
       !passed
     );
 
-    // Show summary
+    // Update sidebar views
+    const allIssues = [
+      ...(result.patterns?.flatMap((p: any) => p.issues || []) || []),
+      ...(result.context || []),
+      ...(result.consistency?.results?.flatMap((r: any) => r.issues || []) || [])
+    ];
+    
+    issuesProvider.refresh(allIssues);
+    summaryProvider.refresh({
+      score,
+      issues: result.issues,
+      warnings: result.warnings,
+      breakdown: result.scoring?.breakdown
+    });
+
+    // Show summary in output channel
     outputChannel.clear();
     outputChannel.appendLine('═══════════════════════════════════════');
     outputChannel.appendLine('       AIReady Analysis Results        ');
@@ -183,20 +382,22 @@ async function runAIReady(path: string, quickScan = false): Promise<void> {
     }
     
     outputChannel.appendLine(result.report);
-    outputChannel.show(true);
 
     // Show notification with option to visualize
     const action = await vscode.window.showInformationMessage(
       `AIReady: Score ${score}/100 - ${result.issues} issues`,
-      'Visualize'
+      'Visualize',
+      'View Report'
     );
     
     if (action === 'Visualize') {
       await runVisualizer();
+    } else if (action === 'View Report') {
+      outputChannel.show();
     }
 
   } catch (error) {
-    updateStatusBar('AIReady: Error', true);
+    updateStatusBar('$(shield) AIReady: Error', true);
     const message = error instanceof Error ? error.message : 'Unknown error';
     vscode.window.showErrorMessage(`AIReady scan failed: ${message}`);
     outputChannel.appendLine(`Error: ${message}`);
@@ -213,7 +414,7 @@ async function runVisualizer(): Promise<void> {
 
   const workspacePath = workspaceFolders[0].uri.fsPath;
   
-  updateStatusBar('$(sync~spin) Generating visualization...', false);
+  updateStatusBar('$(sync~spin) Starting visualizer...', false);
   
   try {
     outputChannel.clear();
@@ -221,17 +422,14 @@ async function runVisualizer(): Promise<void> {
     outputChannel.appendLine('    AIReady Visualization Generator    ');
     outputChannel.appendLine('═══════════════════════════════════════');
     outputChannel.appendLine('');
-    outputChannel.appendLine('Generating interactive visualization...');
+    outputChannel.appendLine('Starting interactive visualization...');
     outputChannel.show();
     
     // Run the visualizer command with --dev flag to start dev server
-    const cmd = `npx @aiready/cli visualize --dev`;
-    
-    outputChannel.appendLine(`Running: ${cmd}`);
+    outputChannel.appendLine('Running: npx @aiready/cli visualize --dev');
     outputChannel.appendLine('');
     
     // Use spawn for long-running process
-    const { spawn } = require('child_process');
     const child = spawn('npx', ['@aiready/cli', 'visualize', '--dev'], {
       cwd: workspacePath,
       shell: true,
@@ -240,17 +438,17 @@ async function runVisualizer(): Promise<void> {
     
     child.on('error', (error: Error) => {
       outputChannel.appendLine(`Error: ${error.message}`);
-      updateStatusBar('AIReady: Error', true);
+      updateStatusBar('$(shield) AIReady: Error', true);
     });
     
-    updateStatusBar('AIReady: Visualizer running', false);
+    updateStatusBar('$(graph) AIReady: Visualizer', false);
     
     vscode.window.showInformationMessage(
-      'AIReady: Visualizer dev server started. Check the output panel for the URL.'
+      'AIReady: Visualizer started. Check the output panel for the URL (usually http://localhost:5173)'
     );
     
   } catch (error) {
-    updateStatusBar('AIReady: Error', true);
+    updateStatusBar('$(shield) AIReady: Error', true);
     const message = error instanceof Error ? error.message : 'Unknown error';
     vscode.window.showErrorMessage(`AIReady visualizer failed: ${message}`);
     outputChannel.appendLine(`Error: ${message}`);
