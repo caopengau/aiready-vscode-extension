@@ -24,18 +24,18 @@ export function createVisualizeCommand(
       outputChannel.appendLine('');
       outputChannel.appendLine('Starting interactive visualization...');
       outputChannel.appendLine('');
-      outputChannel.appendLine('Running: npx @aiready/cli visualize --dev');
+      outputChannel.appendLine('Running: npx @aiready/cli visualize --serve');
       outputChannel.appendLine('');
       outputChannel.show();
       
-      // Use spawn with pipe to capture output
-      const child = spawn('npx', ['@aiready/cli', 'visualize', '--dev'], {
+      // Use --serve instead of --dev because:
+      // - --dev requires @aiready/visualizer to be installed (runs Vite dev server)
+      // - --serve generates static HTML and serves it (works out of the box)
+      const child = spawn('npx', ['@aiready/cli', 'visualize', '--serve'], {
         cwd: workspacePath,
         shell: true,
         env: { ...process.env, FORCE_COLOR: '0' }
       });
-      
-      let visualizerNotFound = false;
       
       // Pipe stdout to output channel
       child.stdout?.on('data', (data: Buffer) => {
@@ -47,17 +47,12 @@ export function createVisualizeCommand(
         });
       });
       
-      // Pipe stderr to output channel and check for errors
+      // Pipe stderr to output channel
       child.stderr?.on('data', (data: Buffer) => {
         const lines = data.toString().split('\n');
         lines.forEach((line: string) => {
           if (line.trim()) {
             outputChannel.appendLine(`[stderr] ${line}`);
-            // Check for visualizer not found error
-            if (line.includes('@aiready/visualizer not available') || 
-                line.includes('Cannot start dev server')) {
-              visualizerNotFound = true;
-            }
           }
         });
       });
@@ -71,24 +66,7 @@ export function createVisualizeCommand(
       child.on('close', (code: number) => {
         if (code !== 0 && code !== null) {
           outputChannel.appendLine(`Process exited with code ${code}`);
-          
-          // If visualizer was not found, offer to install it
-          if (visualizerNotFound) {
-            outputChannel.appendLine('');
-            outputChannel.appendLine('💡 Tip: Install @aiready/visualizer to enable interactive visualizations:');
-            outputChannel.appendLine('   npm install @aiready/visualizer');
-            outputChannel.appendLine('   or');
-            outputChannel.appendLine('   pnpm add @aiready/visualizer');
-            
-            vscode.window.showErrorMessage(
-              'AIReady: Visualizer not installed. Install @aiready/visualizer to enable interactive visualizations.',
-              'Install Now'
-            ).then(action => {
-              if (action === 'Install Now') {
-                installVisualizer(workspacePath, outputChannel);
-              }
-            });
-          }
+          updateStatusBar('$(shield) AIReady: Error', true);
         }
       });
       
