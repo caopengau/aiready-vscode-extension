@@ -2,11 +2,15 @@ import * as vscode from 'vscode';
 import { SMART_DEFAULTS } from './utils/config';
 import { AIReadyIssuesProvider } from './providers/issuesProvider';
 import { AIReadySummaryProvider } from './providers/summaryProvider';
+import { AIReadyReportsProvider, ScanReport } from './providers/reportsProvider';
+import { ReportDetailView } from './providers/reportDetailView';
 import { createScanCommands } from './commands/scan';
 import { createVisualizeCommand } from './commands/visualize';
 
 let statusBarItem: vscode.StatusBarItem;
 let outputChannel: vscode.OutputChannel;
+let reportsProvider: AIReadyReportsProvider;
+let reportDetailView: ReportDetailView;
 
 /**
  * Update the status bar item
@@ -27,6 +31,10 @@ export function activate(context: vscode.ExtensionContext) {
   // Create tree data providers
   const issuesProvider = new AIReadyIssuesProvider();
   const summaryProvider = new AIReadySummaryProvider();
+  
+  // Create reports provider and detail view
+  reportsProvider = new AIReadyReportsProvider();
+  reportDetailView = new ReportDetailView(context);
 
   // Register tree views
   const issuesView = vscode.window.createTreeView('aiready.issues', {
@@ -38,8 +46,26 @@ export function activate(context: vscode.ExtensionContext) {
     treeDataProvider: summaryProvider,
     showCollapseAll: false
   });
+  
+  const reportsView = vscode.window.createTreeView('aiready.reports', {
+    treeDataProvider: reportsProvider,
+    showCollapseAll: false
+  });
 
-  context.subscriptions.push(issuesView, summaryView);
+  context.subscriptions.push(issuesView, summaryView, reportsView);
+  
+  // Load existing reports on startup
+  const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  if (workspacePath) {
+    reportsProvider.refresh(workspacePath);
+  }
+  
+  // Register showReportDetail command
+  context.subscriptions.push(
+    vscode.commands.registerCommand('aiready.showReportDetail', (report: ScanReport) => {
+      reportDetailView.showReport(report);
+    })
+  );
 
   // Create status bar item
   statusBarItem = vscode.window.createStatusBarItem(vscode.StatusBarAlignment.Right, 100);

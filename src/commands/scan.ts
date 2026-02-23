@@ -5,6 +5,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { AIReadyIssuesProvider, Issue } from '../providers/issuesProvider';
 import { AIReadySummaryProvider, Summary } from '../providers/summaryProvider';
+import { AIReadyReportsProvider } from '../providers/reportsProvider';
 import { getMergedConfig } from '../utils/config';
 
 const execAsync = promisify(exec);
@@ -151,6 +152,7 @@ export function createScanCommands(
   outputChannel: vscode.OutputChannel,
   issuesProvider: AIReadyIssuesProvider,
   summaryProvider: AIReadySummaryProvider,
+  reportsProvider: AIReadyReportsProvider | null,
   updateStatusBar: (text: string, isError: boolean) => void,
   runVisualizer: () => Promise<void>
 ): {
@@ -258,6 +260,11 @@ export function createScanCommands(
         breakdown: result.scoring?.breakdown
       };
       summaryProvider.refresh(summary);
+      
+      // Refresh reports list
+      if (reportsProvider) {
+        reportsProvider.refresh(workspacePath);
+      }
 
       // Show summary in output channel
       outputChannel.appendLine('');
