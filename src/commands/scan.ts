@@ -148,6 +148,49 @@ function countIssues(result: AIReadyResult): { critical: number; major: number; 
   return counts;
 }
 
+/**
+ * Extract business metrics from scoring breakdown (v0.10+)
+ */
+function extractBusinessMetrics(result: AIReadyResult): { estimatedMonthlyCost?: number; estimatedDeveloperHours?: number; aiAcceptanceRate?: number } {
+  const breakdown = result.scoring?.breakdown;
+  if (!breakdown || breakdown.length === 0) {
+    return {};
+  }
+  
+  // Aggregate metrics from tool breakdowns
+  let totalCost = 0;
+  let totalHours = 0;
+  
+  for (const tool of breakdown) {
+    const metrics = tool.rawMetrics;
+    if (metrics?.estimatedMonthlyCost) {
+      totalCost += metrics.estimatedMonthlyCost;
+    }
+    if (metrics?.estimatedDeveloperHours) {
+      totalHours += metrics.estimatedDeveloperHours;
+    }
+  }
+  
+  // Calculate AI acceptance rate from scores
+  let aiAcceptanceRate: number | undefined;
+  if (breakdown.length >= 2) {
+    // Base 65% + weighted factors from each tool
+    let rate = 0.65;
+    for (const tool of breakdown) {
+      const score = tool.score;
+      const impact = (score - 50) * 0.003; // ~0.3% per point above/below 50
+      rate += impact;
+    }
+    aiAcceptanceRate = Math.max(0.1, Math.min(0.95, rate));
+  }
+  
+  return {
+    estimatedMonthlyCost: totalCost > 0 ? totalCost : undefined,
+    estimatedDeveloperHours: totalHours > 0 ? totalHours : undefined,
+    aiAcceptanceRate,
+  };
+}
+
 export function createScanCommands(
   outputChannel: vscode.OutputChannel,
   issuesProvider: AIReadyIssuesProvider,
@@ -255,7 +298,8 @@ export function createScanCommands(
         ) || [])
       ];
       
-      issuesProvider.refresh(allIssues);
+      // Extract business metrics
+      const businessMetrics = extractBusinessMetrics(result);
       
       const summary: Summary = {
         score,
@@ -267,7 +311,8 @@ export function createScanCommands(
           major: issueCounts.major,
           minor: issueCounts.minor,
           info: issueCounts.info
-        }
+        },
+        ...businessMetrics
       };
       summaryProvider.refresh(summary);
       
@@ -300,6 +345,25 @@ export function createScanCommands(
       outputChannel.appendLine('');
       outputChannel.appendLine(`Issues:   ${issueCounts.total} (critical: ${issueCounts.critical}, major: ${issueCounts.major}, minor: ${issueCounts.minor})`);
       outputChannel.appendLine(`Status:   ${passed ? '✅ PASSED' : '❌ FAILED'}`);
+      
+      // Show business metrics if available
+      if (businessMetrics.estimatedMonthlyCost || businessMetrics.estimatedDeveloperHours || businessMetrics.aiAcceptanceRate) {
+        outputChannel.appendLine('');
+        outputChannel.appendLine('💰 Business Impact:');
+        if (businessMetrics.estimatedMonthlyCost) {
+          const costFormatted = businessMetrics.estimatedMonthlyCost >= 1000 
+            ? `$${(businessMetrics.estimatedMonthlyCost / 1000).toFixed(1)}k`
+            : `$${businessMetrics.estimatedMonthlyCost.toFixed(0)}`;
+          outputChannel.appendLine(`   Monthly Cost: ${costFormatted}/month (AI context waste)`);
+        }
+        if (businessMetrics.estimatedDeveloperHours) {
+          outputChannel.appendLine(`   Fix Time: ${businessMetrics.estimatedDeveloperHours.toFixed(1)}h`);
+        }
+        if (businessMetrics.aiAcceptanceRate) {
+          outputChannel.appendLine(`   AI Acceptance: ${Math.round(businessMetrics.aiAcceptanceRate * 100)}%`);
+        }
+      }
+      
       outputChannel.appendLine('');
       
       // Show summary if available

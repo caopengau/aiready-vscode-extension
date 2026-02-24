@@ -15,6 +15,10 @@ export interface Summary {
     minor: number;
     info: number;
   };
+  // Business metrics (v0.10+)
+  estimatedMonthlyCost?: number;
+  estimatedDeveloperHours?: number;
+  aiAcceptanceRate?: number;
 }
 
 // Tree item for summary view
@@ -162,6 +166,51 @@ export class AIReadySummaryProvider implements vscode.TreeDataProvider<vscode.Tr
           label: '─── Quick Actions ───',
           contextValue: 'separator'
         } as vscode.TreeItem);
+      }
+
+      // Business metrics section (v0.10+)
+      if (this.summary.estimatedMonthlyCost || this.summary.estimatedDeveloperHours || this.summary.aiAcceptanceRate) {
+        items.push({
+          label: '─── Business Impact ───',
+          contextValue: 'separator'
+        } as vscode.TreeItem);
+
+        // Monthly cost
+        if (this.summary.estimatedMonthlyCost) {
+          const costFormatted = this.summary.estimatedMonthlyCost >= 1000 
+            ? `$${(this.summary.estimatedMonthlyCost / 1000).toFixed(1)}k`
+            : `$${this.summary.estimatedMonthlyCost.toFixed(0)}`;
+          items.push({
+            label: `💰 Monthly Cost: ${costFormatted}`,
+            iconPath: new vscode.ThemeIcon('dollar'),
+            description: 'AI context waste',
+            contextValue: 'metric'
+          } as vscode.TreeItem);
+        }
+
+        // Developer hours
+        if (this.summary.estimatedDeveloperHours) {
+          const hoursFormatted = this.summary.estimatedDeveloperHours >= 40 
+            ? `${(this.summary.estimatedDeveloperHours / 40).toFixed(1)} weeks`
+            : `${this.summary.estimatedDeveloperHours.toFixed(1)}h`;
+          items.push({
+            label: `⏱️ Fix Time: ${hoursFormatted}`,
+            iconPath: new vscode.ThemeIcon('clock'),
+            description: 'to resolve issues',
+            contextValue: 'metric'
+          } as vscode.TreeItem);
+        }
+
+        // AI acceptance rate
+        if (this.summary.aiAcceptanceRate) {
+          const ratePercent = Math.round(this.summary.aiAcceptanceRate * 100);
+          items.push({
+            label: `🤖 AI Acceptance: ${ratePercent}%`,
+            iconPath: new vscode.ThemeIcon('lightbulb'),
+            description: 'suggestion acceptance',
+            contextValue: 'metric'
+          } as vscode.TreeItem);
+        }
       }
 
       // Add action buttons
