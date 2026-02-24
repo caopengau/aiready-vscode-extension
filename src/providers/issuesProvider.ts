@@ -59,8 +59,8 @@ export class AIReadyIssuesProvider implements vscode.TreeDataProvider<vscode.Tre
     if (this.searchQuery) {
       const query = this.searchQuery.toLowerCase();
       filtered = filtered.filter(i => 
-        i.message.toLowerCase().includes(query) ||
-        i.location?.file.toLowerCase().includes(query)
+        (i.message || '').toLowerCase().includes(query) ||
+        (i.location?.file || '').toLowerCase().includes(query)
       );
     }
     
@@ -125,36 +125,46 @@ export class AIReadyIssuesProvider implements vscode.TreeDataProvider<vscode.Tre
       if (this.groupBy === 'severity') {
         const groups = this.groupBySeverity(filteredIssues);
         for (const [severity, issues] of Object.entries(groups)) {
+          if (issues.length === 0) continue; // Skip empty groups
+          const icon = severity === 'critical' ? '🔴' : severity === 'major' ? '🟡' : '🔵';
           const groupItem = new vscode.TreeItem(
-            `${this.getSeverityIcon(severity) === 'error' ? '🔴' : this.getSeverityIcon(severity) === 'warning' ? '🟡' : '🔵'} ${severity.toUpperCase()} (${issues.length})`,
-            vscode.TreeItemCollapsibleState.Expanded
+            `${icon} ${severity.toUpperCase()} (${issues.length})`,
+            vscode.TreeItemCollapsibleState.Collapsed
           );
           groupItem.iconPath = new vscode.ThemeIcon(this.getSeverityIcon(severity));
           groupItem.contextValue = 'group';
+          (groupItem as any).groupKey = severity;
+          (groupItem as any).groupType = 'severity';
           controls.push(groupItem);
         }
       } else if (this.groupBy === 'tool') {
         const groups = this.groupByTool(filteredIssues);
         for (const [tool, issues] of Object.entries(groups)) {
+          if (issues.length === 0) continue;
           const groupItem = new vscode.TreeItem(
             `🔧 ${tool} (${issues.length})`,
-            vscode.TreeItemCollapsibleState.Expanded
+            vscode.TreeItemCollapsibleState.Collapsed
           );
           groupItem.iconPath = new vscode.ThemeIcon('symbol-property');
           groupItem.contextValue = 'group';
+          (groupItem as any).groupKey = tool;
+          (groupItem as any).groupType = 'tool';
           controls.push(groupItem);
         }
       } else if (this.groupBy === 'file') {
         const groups = this.groupByFile(filteredIssues);
         for (const [file, issues] of Object.entries(groups)) {
+          if (issues.length === 0) continue;
           const shortFile = file.split('/').pop() || file;
           const groupItem = new vscode.TreeItem(
             `📁 ${shortFile} (${issues.length})`,
-            vscode.TreeItemCollapsibleState.Expanded
+            vscode.TreeItemCollapsibleState.Collapsed
           );
           groupItem.iconPath = new vscode.ThemeIcon('file');
           groupItem.description = file;
           groupItem.contextValue = 'group';
+          (groupItem as any).groupKey = file;
+          (groupItem as any).groupType = 'file';
           controls.push(groupItem);
         }
       } else {
@@ -167,27 +177,15 @@ export class AIReadyIssuesProvider implements vscode.TreeDataProvider<vscode.Tre
 
     // Return issues for a group
     if (element.contextValue === 'group') {
-      const label = element.label as string;
-      let key = label.split(' ')[0] === '🔴' ? 'critical' : 
-                 label.split(' ')[0] === '🟡' ? 'major' :
-                 label.split(' ')[0] === '🔵' ? 'minor' : label;
+      const groupType = (element as any).groupType;
+      const groupKey = (element as any).groupKey;
       
-      // Extract the group key from label
-      if (label.includes('CRITICAL')) key = 'critical';
-      else if (label.includes('MAJOR')) key = 'major';
-      else if (label.includes('MINOR')) key = 'minor';
-      else if (label.includes('INFO')) key = 'info';
-      else key = label.replace(/^[🔴🟡🔵📁🔧]\s+/, '').split(' ')[0];
-
-      // Check if it's a tool or file group
-      if (label.startsWith('🔧')) {
-        const tool = key.trim();
-        return this.createIssueItems(filteredIssues.filter(i => i.tool === tool));
-      } else if (label.startsWith('📁')) {
-        const file = element.description || key;
-        return this.createIssueItems(filteredIssues.filter(i => i.location?.file === file));
-      } else {
-        return this.createIssueItems(filteredIssues.filter(i => i.severity === key));
+      if (groupType === 'severity') {
+        return this.createIssueItems(filteredIssues.filter(i => i.severity === groupKey));
+      } else if (groupType === 'tool') {
+        return this.createIssueItems(filteredIssues.filter(i => i.tool === groupKey));
+      } else if (groupType === 'file') {
+        return this.createIssueItems(filteredIssues.filter(i => i.location?.file === groupKey));
       }
     }
 
@@ -199,8 +197,12 @@ export class AIReadyIssuesProvider implements vscode.TreeDataProvider<vscode.Tre
       const location = issue.location;
       const locationStr = location ? `${location.file}${location.line ? `:${location.line}` : ''}` : '';
       
+      // Handle undefined message
+      const message = issue.message || 'Unknown issue';
+      const truncatedMessage = message.substring(0, 80) + (message.length > 80 ? '...' : '');
+      
       const item = new vscode.TreeItem(
-        issue.message.substring(0, 80) + (issue.message.length > 80 ? '...' : ''),
+        truncatedMessage,
         vscode.TreeItemCollapsibleState.None
       );
       item.iconPath = new vscode.ThemeIcon(this.getSeverityIcon(issue.severity));
