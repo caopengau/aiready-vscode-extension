@@ -1,14 +1,24 @@
 import * as vscode from 'vscode';
 
-// Smart defaults matching CLI behavior
+// Smart defaults matching CLI behavior (all scoring spokes)
 export const SMART_DEFAULTS = {
   threshold: 70,
-  tools: ['patterns', 'context', 'consistency'] as const,
+  tools: [
+    'patterns',
+    'context',
+    'consistency',
+    'aiSignalClarity',
+    'grounding',
+    'testability',
+    'doc-drift',
+    'deps-health',
+  ] as const,
   failOn: 'critical' as const,
   autoScan: false,
   showStatusBar: true,
   excludePatterns: ['node_modules/**', 'dist/**', '.git/**', '**/*.min.js', '**/build/**'],
 };
+
 
 export interface AIReadyConfig {
   threshold: number;
@@ -24,7 +34,7 @@ export interface AIReadyConfig {
  */
 export function getMergedConfig(): AIReadyConfig {
   const config = vscode.workspace.getConfiguration('aiready');
-  
+
   return {
     threshold: config.get<number>('threshold', SMART_DEFAULTS.threshold),
     tools: config.get<string[]>('tools', [...SMART_DEFAULTS.tools]),

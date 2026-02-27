@@ -150,15 +150,25 @@
             "enum": [
               "patterns",
               "context",
-              "consistency"
+              "consistency",
+              "aiSignalClarity",
+              "grounding",
+              "testability",
+              "doc-drift",
+              "deps-health"
             ]
           },
           "default": [
             "patterns",
             "context",
-            "consistency"
+            "consistency",
+            "aiSignalClarity",
+            "grounding",
+            "testability",
+            "doc-drift",
+            "deps-health"
           ],
-          "description": "Tools to run during analysis. Default: all three (matching CLI)"
+          "description": "Tools to run during analysis. Defaults to all 9 scoring spokes (matching CLI defaults)."
         },
         "aiready.autoScan": {
           "type": "boolean",
