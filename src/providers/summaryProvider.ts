@@ -8,12 +8,20 @@ export interface Summary {
     toolName: string;
     score: number;
     rating: string;
+    tokenBudget?: any;
   }>;
   issueBreakdown?: {
     critical: number;
     major: number;
     minor: number;
     info: number;
+  };
+  // AI token budget unit economics (v0.13+)
+  tokenBudget?: any;
+  costEstimate?: {
+    model: string;
+    total: number;
+    range: [number, number];
   };
   // Business metrics (v0.10+)
   estimatedMonthlyCost?: number;
@@ -179,19 +187,50 @@ export class AIReadySummaryProvider implements vscode.TreeDataProvider<vscode.Tr
         } as vscode.TreeItem);
       }
 
-      // Business metrics section (v0.10+)
+      // Token Budget & Business metrics section (v0.13+)
       if (
+        this.summary.tokenBudget ||
         this.summary.estimatedMonthlyCost ||
         this.summary.estimatedDeveloperHours ||
         this.summary.aiAcceptanceRate
       ) {
         items.push({
-          label: '─── Business Impact ───',
+          label: '─── AI Token Economics ───',
           contextValue: 'separator',
         } as vscode.TreeItem);
 
-        // Monthly cost
-        if (this.summary.estimatedMonthlyCost) {
+        // Token Efficiency
+        if (this.summary.tokenBudget) {
+          const efficiencyBar = this.createBarChart(this.summary.tokenBudget.efficiencyRatio * 100, 10);
+          items.push({
+            label: `${efficiencyBar} Efficiency: ${(this.summary.tokenBudget.efficiencyRatio * 100).toFixed(0)}%`,
+            iconPath: new vscode.ThemeIcon('dashboard'),
+            description: 'context signal/noise',
+            contextValue: 'metric',
+          } as vscode.TreeItem);
+
+          items.push({
+            label: `• Total Context: ${(this.summary.tokenBudget.totalContextTokens / 1000).toFixed(0)}K tokens`,
+            iconPath: new vscode.ThemeIcon('database'),
+            contextValue: 'metric-detail',
+          } as vscode.TreeItem);
+
+          items.push({
+            label: `• Wasted: ${(this.summary.tokenBudget.wastedTokens.total / 1000).toFixed(0)}K tokens`,
+            iconPath: new vscode.ThemeIcon('trash'),
+            contextValue: 'metric-detail',
+          } as vscode.TreeItem);
+        }
+
+        // Cost Estimate
+        if (this.summary.costEstimate) {
+          items.push({
+            label: `💰 Est. Cost: $${this.summary.costEstimate.total}/mo`,
+            iconPath: new vscode.ThemeIcon('dollar'),
+            description: this.summary.costEstimate.model,
+            contextValue: 'metric',
+          } as vscode.TreeItem);
+        } else if (this.summary.estimatedMonthlyCost) {
           const costFormatted =
             this.summary.estimatedMonthlyCost >= 1000
               ? `$${(this.summary.estimatedMonthlyCost / 1000).toFixed(1)}k`
