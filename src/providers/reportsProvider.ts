@@ -211,6 +211,7 @@ export class AIReadyReportsProvider implements vscode.TreeDataProvider<vscode.Tr
 
         // Store report data in the item
         (item as any).report = report;
+        item.contextValue = 'report';
 
         // Make it clickable to show details
         item.command = {

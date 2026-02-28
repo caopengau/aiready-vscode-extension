@@ -69,12 +69,18 @@ export function activate(context: vscode.ExtensionContext) {
     summaryProvider.refresh();
 
     // Load existing reports on startup
-    const workspacePath = vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
-    if (workspacePath) {
-      reportsProvider.refresh(workspacePath);
-    } else {
-      reportsProvider.refresh();
-    }
+    const getWorkspacePath = () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+
+    reportsProvider.refresh(getWorkspacePath());
+
+    // Refresh when workspace folders change
+    context.subscriptions.push(
+      vscode.workspace.onDidChangeWorkspaceFolders(() => {
+        reportsProvider.refresh(getWorkspacePath());
+        issuesProvider.refresh([]); // Clear issues when switching workspace
+        summaryProvider.refresh(null);
+      })
+    );
 
     // Register showReportDetail command
     context.subscriptions.push(

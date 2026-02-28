@@ -2,7 +2,7 @@
   "name": "aiready",
   "displayName": "AIReady - AI Readiness Checker",
   "description": "Real-time AI readiness analysis for your codebase. Detect issues that confuse AI models before they become problems.",
-  "version": "0.3.25",
+  "version": "0.3.26",
   "publisher": "pengcao",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -129,6 +129,43 @@
       }
     ],
     "menus": {
+      "view/title": [
+        {
+          "command": "aiready.scan",
+          "group": "navigation@1",
+          "when": "view == aiready.summary || view == aiready.issues || view == aiready.reports"
+        },
+        {
+          "command": "aiready.visualize",
+          "group": "navigation@2",
+          "when": "view == aiready.summary || view == aiready.reports"
+        },
+        {
+          "command": "aiready.openSettings",
+          "group": "navigation@3",
+          "when": "view == aiready.summary"
+        },
+        {
+          "command": "aiready.issues.groupBySeverity",
+          "group": "grouping@1",
+          "when": "view == aiready.issues"
+        },
+        {
+          "command": "aiready.issues.groupByTool",
+          "group": "grouping@2",
+          "when": "view == aiready.issues"
+        },
+        {
+          "command": "aiready.issues.groupByFile",
+          "group": "grouping@3",
+          "when": "view == aiready.issues"
+        },
+        {
+          "command": "aiready.issues.filterCritical",
+          "group": "filter@1",
+          "when": "view == aiready.issues"
+        }
+      ],
       "editor/title": [
         {
           "command": "aiready.scan",
@@ -141,6 +178,13 @@
           "command": "aiready.quickScan",
           "group": "aiready@1",
           "when": "editorTextFocus"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "aiready.showReportDetail",
+          "when": "view == aiready.reports && viewItem == report",
+          "group": "inline"
         }
       ]
     },
