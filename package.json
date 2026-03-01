@@ -2,7 +2,7 @@
   "name": "aiready",
   "displayName": "AIReady - AI Readiness Checker",
   "description": "Real-time AI readiness analysis for your codebase. Detect issues that confuse AI models before they become problems.",
-  "version": "0.3.29",
+  "version": "0.3.30",
   "publisher": "pengcao",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -328,10 +328,10 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/caopengau/aiready.git"
+    "url": "https://github.com/caopengau/aiready-vscode-extension.git"
   },
   "homepage": "https://getaiready.dev",
   "bugs": {
-    "url": "https://github.com/caopengau/aiready/issues"
+    "url": "https://github.com/caopengau/aiready-vscode-extension/issues"
   }
 }

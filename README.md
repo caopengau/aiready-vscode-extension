@@ -102,8 +102,9 @@ Initial release:
 ## Links
 
 - [Documentation](https://getaiready.dev/docs)
-- [GitHub](https://github.com/caopengau/aiready)
-- [Issues](https://github.com/caopengau/aiready/issues)
+- [GitHub (CLI)](https://github.com/caopengau/aiready-cli)
+- [GitHub (Extension)](https://github.com/caopengau/aiready-vscode-extension)
+- [Issues](https://github.com/caopengau/aiready-vscode-extension/issues)
 - [npm @aiready/cli](https://www.npmjs.com/package/@aiready/cli)
 
 ---
