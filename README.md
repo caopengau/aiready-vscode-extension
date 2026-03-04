@@ -10,6 +10,7 @@
 - 🛡️ **Real-time Analysis** - See your AI readiness score in the status bar
 - 📊 **Issue Explorer** - Browse detected issues in the sidebar
 - ⚡ **Quick Scan** - Analyze current file with a single command
+- 🔬 **9-Metric Methodology** - Deep dive into 9 dimensions of AI-readiness
 - 🔧 **Configurable** - Set thresholds, severity levels, and more
 
 ## Installation
@@ -38,16 +39,17 @@ code --install-extension aiready-vsix
 | `AIReady: Quick Scan (Current File)` | Analyze only the active file       |
 | `AIReady: Show Report`               | Open the output panel with details |
 | `AIReady: Open Settings`             | Configure AIReady options          |
+| `AIReady: Show Methodology`          | Deep dive into the 9 metrics       |
 
 ### Configuration
 
-| Setting                 | Default                                  | Description               |
-| ----------------------- | ---------------------------------------- | ------------------------- |
-| `aiready.threshold`     | `70`                                     | Minimum score to pass     |
-| `aiready.failOn`        | `critical`                               | Severity level to fail on |
-| `aiready.tools`         | `["patterns", "context", "consistency"]` | Tools to run              |
-| `aiready.autoScan`      | `false`                                  | Auto-scan on file save    |
-| `aiready.showStatusBar` | `true`                                   | Show score in status bar  |
+| Setting                 | Default                                       | Description               |
+| ----------------------- | --------------------------------------------- | ------------------------- |
+| `aiready.threshold`     | `70`                                          | Minimum score to pass     |
+| `aiready.failOn`        | `critical`                                    | Severity level to fail on |
+| `aiready.tools`         | `["patterns", "context", "consistency", ...]` | Tools to run              |
+| `aiready.autoScan`      | `false`                                       | Auto-scan on file save    |
+| `aiready.showStatusBar` | `true`                                        | Show score in status bar  |
 
 ### Status Bar
 
@@ -57,47 +59,42 @@ The extension shows your AI readiness score in the status bar:
 - ⚠️ **50-69** - Needs improvement
 - ❌ **<50** - Critical issues detected
 
-## What AIReady Detects
+## The 9 Dimensions of AI-Readiness
 
-### Pattern Detection
+AIReady measures your codebase against 9 critical metrics that determine how well AI agents can understand and maintain your code:
 
-- Semantic duplicates (same logic, different code)
-- Copy-paste code patterns
-- Similar function implementations
+1. **Semantic Duplicates** - Logic repeated in different ways that confuses AI context.
+2. **Context Fragmentation** - How scattered related logic is across the codebase.
+3. **Naming Consistency** - Unified naming patterns that help AI predict your intent.
+4. **Dependency Health** - Stability and freshness of your project dependencies.
+5. **Change Amplification** - Ripple effects when a single requirement evolves.
+6. **AI Signal Clarity** - Ratio of actual logic (signal) to boilerplate/dead code (noise).
+7. **Documentation Health** - Accuracy and freshness of docstrings and READMEs.
+8. **Agent Grounding** - Ease of navigation for autonomous AI agents.
+9. **Testability Index** - Ability for AI to write and run reliable tests for your code.
 
-### Context Analysis
+## Methodology & Deep Dives
 
-- Deep import chains
-- Context window cost estimation
-- Files that fragment AI understanding
+Click on any tool score in the sidebar's **Summary** view to open the **AIReady Methodology** deep dive. This view provides:
 
-### Consistency Check
-
-- Naming convention violations
-- Inconsistent patterns across codebase
-- Mixed coding styles
+- **Technical "How":** The engineering logic behind each metric.
+- **Scoring Thresholds:** What constitutes a pass vs. a fail.
+- **Refactoring Playbook:** Actionable steps to improve your score.
+- **Good vs. Bad Examples:** Visual code comparisons.
 
 ## Requirements
 
 - VS Code 1.85.0 or higher
 - Node.js 18+ (for CLI execution)
 
-## Known Issues
-
-- Large repositories may take longer to scan
-- First scan requires npm to install CLI
-
 ## Release Notes
 
-### 0.1.0
+### 0.3.32
 
-Initial release:
-
-- Workspace scanning
-- Quick file scan
-- Issue explorer
-- Status bar integration
-- Configurable thresholds
+- **New 9-Metric Methodology**: Integrated full deep-dive support for all 9 AI-readiness metrics.
+- **Methodology Webview**: Added a detailed view explaining detection logic, thresholds, and examples.
+- **Interactive Summary**: Click tool scores to see how they are calculated and how to fix them.
+- **Refined UI**: Improved issue grouping and visualization.
 
 ## Links
 
@@ -110,5 +107,3 @@ Initial release:
 ---
 
 **Enjoy coding with AI-ready code!** 🚀
-</task_progress>
-</write_to_file>
