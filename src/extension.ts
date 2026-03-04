@@ -13,6 +13,7 @@ import {
 import { ReportDetailView } from './providers/reportDetailView';
 import { createScanCommands } from './commands/scan';
 import { createVisualizeCommand } from './commands/visualize';
+import { MetricsViewProvider } from './providers/metricsProvider';
 
 let statusBarItem: vscode.StatusBarItem;
 let outputChannel: vscode.OutputChannel;
@@ -93,6 +94,12 @@ export function activate(context: vscode.ExtensionContext) {
         (report: ScanReport) => {
           reportDetailView.showReport(report);
         }
+      ),
+      vscode.commands.registerCommand(
+        'aiready.showMetrics',
+        (metricId?: string) => {
+          MetricsViewProvider.show(context, metricId);
+        }
       )
     );
 
@@ -147,7 +154,8 @@ export function activate(context: vscode.ExtensionContext) {
     summaryProvider.refresh();
 
     // Load existing reports on startup
-    const getWorkspacePath = () => vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+    const getWorkspacePath = () =>
+      vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
     reportsProvider.refresh();
 
     // Refresh when workspace folders change

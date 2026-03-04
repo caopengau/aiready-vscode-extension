@@ -177,6 +177,11 @@ export class AIReadySummaryProvider implements vscode.TreeDataProvider<vscode.Tr
             ),
             description: tool.toolName,
             tooltip: `${tool.toolName}: ${tool.score}/100 (${tool.rating})`,
+            command: {
+              command: 'aiready.showMetrics',
+              title: 'Show Methodology',
+              arguments: [tool.toolName.toLowerCase().replace(/\s+/g, '-')],
+            },
           } as vscode.TreeItem);
         });
       } else {
@@ -201,7 +206,10 @@ export class AIReadySummaryProvider implements vscode.TreeDataProvider<vscode.Tr
 
         // Token Efficiency
         if (this.summary.tokenBudget) {
-          const efficiencyBar = this.createBarChart(this.summary.tokenBudget.efficiencyRatio * 100, 10);
+          const efficiencyBar = this.createBarChart(
+            this.summary.tokenBudget.efficiencyRatio * 100,
+            10
+          );
           items.push({
             label: `${efficiencyBar} Efficiency: ${(this.summary.tokenBudget.efficiencyRatio * 100).toFixed(0)}%`,
             iconPath: new vscode.ThemeIcon('dashboard'),
