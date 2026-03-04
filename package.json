@@ -1,7 +1,7 @@
 {
   "name": "aiready",
   "displayName": "AIReady - AI Readiness Checker",
-  "description": "Real-time AI readiness analysis for your codebase. Detect issues that confuse AI models before they become problems.",
+  "description": "Real-time AI readiness analysis for your codebase. Measure the 9 dimensions of AI-friendliness and detect issues that confuse AI models.",
   "version": "0.3.32",
   "publisher": "pengcao",
   "license": "MIT",
@@ -38,6 +38,8 @@
   "keywords": [
     "ai",
     "readiness",
+    "9-metrics",
+    "methodology",
     "code-quality",
     "linting",
     "code-analysis",
