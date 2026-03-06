@@ -14,11 +14,9 @@ export class ReportDetailView {
    * Show the report detail view for a given report
    */
   showReport(report: ScanReport): void {
-    let recentScores: number[] = [];
-
     // Get scores from all reports (most recent first)
     const allReports = findAllReports();
-    recentScores = allReports
+    const recentScores = allReports
       .slice(0, 10) // Last 10 reports
       .map((r) => r.score)
       .reverse(); // Reverse so oldest is first for the chart
